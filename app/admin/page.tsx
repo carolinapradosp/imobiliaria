@@ -3,9 +3,13 @@ import { FaPlus } from "react-icons/fa6";
 
 import DashboardStats from "@/components/admin/DashboardStats";
 import PropertiesTable from "@/components/admin/PropertiesTable";
-import { properties } from "@/data/properties";
+import { getProperties } from "@/repositories/propertiesRepository";
 
-export default function AdminDashboardPage() {
+export const dynamic = "force-dynamic";
+
+export default async function AdminDashboardPage() {
+    const properties = await getProperties();
+
     return (
         <div className="mx-auto max-w-400">
             <div className="mb-8 flex flex-col justify-between gap-4 sm:flex-row sm:items-center">

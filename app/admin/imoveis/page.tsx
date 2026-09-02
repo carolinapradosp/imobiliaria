@@ -3,13 +3,17 @@ import Link from "next/link";
 import { FaPlus } from "react-icons/fa6";
 
 import AdminPropertiesList from "@/components/admin/properties/AdminPropertiesList";
-import { properties } from "@/data/properties";
+import { getProperties } from "@/repositories/propertiesRepository";
 
 export const metadata: Metadata = {
     title: "Imóveis",
 };
 
-export default function AdminPropertiesPage() {
+export const dynamic = "force-dynamic";
+
+export default async function AdminPropertiesPage() {
+    const properties = await getProperties();
+
     return (
         <div className="mx-auto max-w-400">
             <div className="mb-8 flex flex-col justify-between gap-4 sm:flex-row sm:items-center">

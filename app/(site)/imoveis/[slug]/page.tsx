@@ -6,7 +6,7 @@ import { FaChevronRight } from "react-icons/fa6";
 import PropertyContact from "@/components/property/PropertyContact";
 import PropertyDetails from "@/components/property/PropertyDetails";
 import PropertyGallery from "@/components/property/PropertyGallery";
-import { properties } from "@/data/properties";
+import { getPropertyBySlug } from "@/repositories/propertiesRepository";
 
 type PropertyPageProps = {
     params: Promise<{
@@ -14,23 +14,13 @@ type PropertyPageProps = {
     }>;
 };
 
-export function generateStaticParams() {
-    return properties
-        .filter((property) => property.active)
-        .map((property) => ({
-            slug: property.slug,
-        }));
-}
+export const dynamic = "force-dynamic";
 
 export async function generateMetadata({
     params,
 }: PropertyPageProps): Promise<Metadata> {
     const { slug } = await params;
-
-    const property = properties.find(
-        (currentProperty) =>
-            currentProperty.slug === slug && currentProperty.active,
-    );
+    const property = await getPropertyBySlug(slug);
 
     if (!property) {
         return {
@@ -41,6 +31,18 @@ export async function generateMetadata({
     return {
         title: property.title,
         description: property.description,
+        openGraph: {
+            title: property.title,
+            description: property.description,
+            images: property.images[0]
+                ? [
+                    {
+                        url: property.images[0],
+                        alt: property.title,
+                    },
+                ]
+                : [],
+        },
     };
 }
 
@@ -48,11 +50,7 @@ export default async function PropertyPage({
     params,
 }: PropertyPageProps) {
     const { slug } = await params;
-
-    const property = properties.find(
-        (currentProperty) =>
-            currentProperty.slug === slug && currentProperty.active,
-    );
+    const property = await getPropertyBySlug(slug);
 
     if (!property) {
         notFound();
@@ -83,7 +81,9 @@ export default async function PropertyPage({
                         aria-hidden="true"
                     />
 
-                    <span className="text-slate-700">{property.title}</span>
+                    <span className="text-slate-700">
+                        {property.title}
+                    </span>
                 </nav>
 
                 <PropertyGallery

@@ -1,6 +1,10 @@
 import PropertySearch from "@/components/home/PropertySearch";
-import { properties } from "@/data/properties";
+import { getActiveProperties } from "@/repositories/propertiesRepository";
 
-export default function Home() {
+export const dynamic = "force-dynamic";
+
+export default async function Home() {
+  const properties = await getActiveProperties();
+
   return <PropertySearch properties={properties} />;
 }
