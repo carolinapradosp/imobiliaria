@@ -62,16 +62,19 @@ export default function AdminSidebar() {
 
                             const isActive =
                                 item.href === "/admin"
-                                    ? pathname === item.href
-                                    : pathname.startsWith(item.href);
+                                    ? pathname === "/admin"
+                                    : item.href === "/admin/imoveis"
+                                        ? pathname === "/admin/imoveis" ||
+                                        pathname.includes("/editar")
+                                        : pathname === item.href;
 
                             return (
                                 <li key={item.href}>
                                     <Link
                                         href={item.href}
                                         className={`flex items-center gap-3 rounded-lg px-4 py-3 text-sm font-medium transition-colors ${isActive
-                                                ? "bg-blue-700 text-white"
-                                                : "text-slate-300 hover:bg-slate-900 hover:text-white"
+                                            ? "bg-blue-700 text-white"
+                                            : "text-slate-300 hover:bg-slate-900 hover:text-white"
                                             }`}
                                     >
                                         <Icon aria-hidden="true" />
