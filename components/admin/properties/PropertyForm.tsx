@@ -1,7 +1,10 @@
+// components\admin\properties\PropertyForm.tsx
 "use client";
 
+import { upload } from "@vercel/blob/client";
 import Image from "next/image";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import {
     type ChangeEvent,
     type FormEvent,
@@ -16,16 +19,39 @@ import {
     FaTrash,
 } from "react-icons/fa6";
 
+import {
+    cleanupPropertyUploadsAction,
+    createPropertyAction,
+    updatePropertyAction,
+} from "@/app/admin/(protected)/imoveis/actions";
 import type {
     Property,
     PropertyPurpose,
     PropertyType,
 } from "@/interfaces/Property";
+import type { PropertyMutationInput } from "@/interfaces/PropertyMutation";
 
 type PropertyFormProps = {
     mode: "create" | "edit";
     initialProperty?: Property;
 };
+
+type FormImage = {
+    id: string;
+    previewUrl: string;
+    persistedUrl?: string;
+    file?: File;
+};
+
+const MAX_IMAGES = 20;
+const MAX_IMAGE_SIZE = 10 * 1024 * 1024;
+
+const allowedImageTypes = [
+    "image/jpeg",
+    "image/png",
+    "image/webp",
+    "image/avif",
+];
 
 type PropertyFormState = {
     title: string;
@@ -133,12 +159,21 @@ export default function PropertyForm({
         createInitialForm(initialProperty),
     );
 
-    const [images, setImages] = useState<string[]>(
-        initialProperty?.images ?? [],
+    const router = useRouter();
+
+    const [images, setImages] = useState<FormImage[]>(() =>
+        (initialProperty?.images ?? []).map((url, index) => ({
+            id: `persisted-${index}-${url}`,
+            previewUrl: url,
+            persistedUrl: url,
+        })),
     );
 
     const [submitted, setSubmitted] = useState(false);
     const [imageError, setImageError] = useState("");
+    const [saveError, setSaveError] = useState("");
+    const [isSaving, setIsSaving] = useState(false);
+
     const objectUrlsRef = useRef<string[]>([]);
 
     useEffect(() => {
@@ -154,6 +189,7 @@ export default function PropertyForm({
         value: string | boolean,
     ) {
         setSubmitted(false);
+        setSaveError("");
 
         setForm((currentForm) => ({
             ...currentForm,
@@ -163,6 +199,7 @@ export default function PropertyForm({
 
     function handleTitleChange(value: string) {
         setSubmitted(false);
+        setSaveError("");
 
         setForm((currentForm) => ({
             ...currentForm,
@@ -173,9 +210,9 @@ export default function PropertyForm({
                     : currentForm.slug,
         }));
     }
-
     function handleTypeChange(type: PropertyType) {
         setSubmitted(false);
+        setSaveError("");
 
         setForm((currentForm) => ({
             ...currentForm,
@@ -199,42 +236,91 @@ export default function PropertyForm({
             return;
         }
 
-        const validFiles = files.filter((file) =>
-            file.type.startsWith("image/"),
+        setSaveError("");
+
+        if (images.length + files.length > MAX_IMAGES) {
+            setImageError(
+                `Cada imóvel pode possuir no máximo ${MAX_IMAGES} imagens.`,
+            );
+
+            event.target.value = "";
+            return;
+        }
+
+        const invalidType = files.find(
+            (file) => !allowedImageTypes.includes(file.type),
         );
 
-        const newImageUrls = validFiles.map((file) => {
-            const url = URL.createObjectURL(file);
-            objectUrlsRef.current.push(url);
+        if (invalidType) {
+            setImageError(
+                "Use somente imagens JPEG, PNG, WebP ou AVIF.",
+            );
 
-            return url;
+            event.target.value = "";
+            return;
+        }
+
+        const oversizedFile = files.find(
+            (file) => file.size > MAX_IMAGE_SIZE,
+        );
+
+        if (oversizedFile) {
+            setImageError(
+                `A imagem "${oversizedFile.name}" ultrapassa o limite de 10 MB.`,
+            );
+
+            event.target.value = "";
+            return;
+        }
+
+        const newImages = files.map((file): FormImage => {
+            const previewUrl = URL.createObjectURL(file);
+
+            objectUrlsRef.current.push(previewUrl);
+
+            return {
+                id: crypto.randomUUID(),
+                previewUrl,
+                file,
+            };
         });
 
         setImages((currentImages) => [
             ...currentImages,
-            ...newImageUrls,
+            ...newImages,
         ]);
 
         setImageError("");
         event.target.value = "";
     }
 
-    function handleRemoveImage(imageToRemove: string) {
+    function handleRemoveImage(imageToRemove: FormImage) {
+        setSubmitted(false);
+        setSaveError("");
+
         setImages((currentImages) =>
-            currentImages.filter((image) => image !== imageToRemove),
+            currentImages.filter(
+                (image) => image.id !== imageToRemove.id,
+            ),
         );
 
-        if (imageToRemove.startsWith("blob:")) {
-            URL.revokeObjectURL(imageToRemove);
+        if (imageToRemove.previewUrl.startsWith("blob:")) {
+            URL.revokeObjectURL(imageToRemove.previewUrl);
 
             objectUrlsRef.current = objectUrlsRef.current.filter(
-                (url) => url !== imageToRemove,
+                (url) => url !== imageToRemove.previewUrl,
             );
         }
     }
 
-    function handleSubmit(event: FormEvent<HTMLFormElement>) {
+    async function handleSubmit(
+        event: FormEvent<HTMLFormElement>,
+    ) {
         event.preventDefault();
+
+        if (isSaving) {
+            return;
+        }
 
         if (images.length === 0) {
             setImageError("Adicione pelo menos uma imagem do imóvel.");
@@ -242,48 +328,112 @@ export default function PropertyForm({
             return;
         }
 
-        const propertyData: Property = {
-            id: initialProperty?.id ?? crypto.randomUUID(),
-            title: form.title.trim(),
-            slug: form.slug.trim(),
-            description: form.description.trim(),
-            type: form.type,
-            purpose: form.purpose,
-            price: Number(form.price),
-            condominium: form.condominium
-                ? Number(form.condominium)
-                : undefined,
-            propertyTax: form.propertyTax
-                ? Number(form.propertyTax)
-                : undefined,
-            city: form.city.trim(),
-            state: form.state,
-            neighborhood: form.neighborhood.trim(),
-            bedrooms: form.bedrooms
-                ? Number(form.bedrooms)
-                : undefined,
-            bathrooms: form.bathrooms
-                ? Number(form.bathrooms)
-                : undefined,
-            parkingSpaces: form.parkingSpaces
-                ? Number(form.parkingSpaces)
-                : undefined,
-            area: Number(form.area),
-            images,
-            featured: form.featured,
-            active: form.active,
-        };
-
-        // Posteriormente enviaremos propertyData para uma Server Action.
-        void propertyData;
-
+        setIsSaving(true);
+        setSaveError("");
         setImageError("");
-        setSubmitted(true);
+        setSubmitted(false);
 
-        window.scrollTo({
-            top: 0,
-            behavior: "smooth",
-        });
+        const uploadedUrls: string[] = [];
+
+        try {
+            const finalImageUrls: string[] = [];
+
+            /*
+             * O loop mantém a mesma ordem exibida no preview.
+             * Imagens antigas reutilizam a URL existente.
+             * Imagens novas são enviadas ao Blob.
+             */
+            for (const image of images) {
+                if (image.persistedUrl) {
+                    finalImageUrls.push(image.persistedUrl);
+                    continue;
+                }
+
+                if (!image.file) {
+                    throw new Error("Arquivo de imagem não encontrado.");
+                }
+
+                const safeFileName = image.file.name
+                    .normalize("NFD")
+                    .replace(/[\u0300-\u036f]/g, "")
+                    .toLowerCase()
+                    .replace(/[^a-z0-9._-]/g, "-")
+                    .replace(/-+/g, "-");
+
+                const pathname = [
+                    "properties",
+                    form.slug || "property",
+                    `${crypto.randomUUID()}-${safeFileName}`,
+                ].join("/");
+
+                const blob = await upload(pathname, image.file, {
+                    access: "public",
+                    handleUploadUrl: "/api/properties/upload",
+                });
+
+                uploadedUrls.push(blob.url);
+                finalImageUrls.push(blob.url);
+            }
+
+            const propertyData: PropertyMutationInput = {
+                id: initialProperty?.id,
+                title: form.title.trim(),
+                slug: form.slug.trim(),
+                description: form.description.trim(),
+                type: form.type,
+                purpose: form.purpose,
+                price: Number(form.price),
+                condominium: form.condominium
+                    ? Number(form.condominium)
+                    : undefined,
+                propertyTax: form.propertyTax
+                    ? Number(form.propertyTax)
+                    : undefined,
+                city: form.city.trim(),
+                state: form.state.trim().toUpperCase(),
+                neighborhood: form.neighborhood.trim(),
+                bedrooms: form.bedrooms
+                    ? Number(form.bedrooms)
+                    : undefined,
+                bathrooms: form.bathrooms
+                    ? Number(form.bathrooms)
+                    : undefined,
+                parkingSpaces: form.parkingSpaces
+                    ? Number(form.parkingSpaces)
+                    : undefined,
+                area: Number(form.area),
+                images: finalImageUrls,
+                featured: form.featured,
+                active: form.active,
+            };
+
+            const result =
+                mode === "create"
+                    ? await createPropertyAction(propertyData)
+                    : await updatePropertyAction(propertyData);
+
+            if (!result.success) {
+                await cleanupPropertyUploadsAction(uploadedUrls);
+
+                setSaveError(result.message);
+                return;
+            }
+
+            setSubmitted(true);
+
+            router.push("/admin/imoveis");
+            router.refresh();
+        } catch (error: unknown) {
+            await cleanupPropertyUploadsAction(uploadedUrls);
+
+            setSaveError(
+                error instanceof Error
+                    ? error.message
+                    : "Não foi possível salvar o imóvel.",
+            );
+        } finally {
+            setIsSaving(false);
+        }
     }
 
     return (
@@ -297,6 +447,15 @@ export default function PropertyForm({
                         ? "Imóvel cadastrado com sucesso na simulação."
                         : "Imóvel atualizado com sucesso na simulação."}
                     {" "}Os dados serão restaurados ao atualizar a página.
+                </div>
+            )}
+
+            {saveError && (
+                <div
+                    role="alert"
+                    className="mb-6 rounded-lg border border-rose-200 bg-rose-50 px-4 py-3 text-sm font-medium text-rose-800"
+                >
+                    {saveError}
                 </div>
             )}
 
@@ -728,7 +887,7 @@ export default function PropertyForm({
                             <input
                                 id="property-images"
                                 type="file"
-                                accept="image/*"
+                                accept="image/jpeg,image/png,image/webp,image/avif"
                                 multiple
                                 onChange={handleImagesChange}
                                 className="sr-only"
@@ -743,36 +902,41 @@ export default function PropertyForm({
 
                         {images.length > 0 && (
                             <div className="mt-5 grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-4">
-                                {images.map((image, index) => (
-                                    <div
-                                        key={`${image}-${index}`}
-                                        className="relative aspect-4/3 overflow-hidden rounded-lg bg-slate-200"
-                                    >
-                                        <Image
-                                            src={image}
-                                            alt={`Imagem ${index + 1} do imóvel`}
-                                            fill
-                                            sizes="250px"
-                                            unoptimized={image.startsWith("blob:")}
-                                            className="object-cover"
-                                        />
+                                {images.length > 0 && (
+                                    <div className="mt-5 grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-4">
+                                        {images.map((image, index) => (
+                                            <div
+                                                key={image.id}
+                                                className="relative aspect-4/3 overflow-hidden rounded-lg bg-slate-200"
+                                            >
+                                                <Image
+                                                    src={image.previewUrl}
+                                                    alt={`Imagem ${index + 1} do imóvel`}
+                                                    fill
+                                                    sizes="250px"
+                                                    unoptimized={image.previewUrl.startsWith("blob:")}
+                                                    className="object-cover"
+                                                />
 
-                                        {index === 0 && (
-                                            <span className="absolute top-2 left-2 rounded-full bg-blue-700 px-2 py-1 text-xs font-semibold text-white">
-                                                Capa
-                                            </span>
-                                        )}
+                                                {index === 0 && (
+                                                    <span className="absolute top-2 left-2 rounded-full bg-blue-700 px-2 py-1 text-xs font-semibold text-white">
+                                                        Capa
+                                                    </span>
+                                                )}
 
-                                        <button
-                                            type="button"
-                                            onClick={() => handleRemoveImage(image)}
-                                            aria-label={`Remover imagem ${index + 1}`}
-                                            className="absolute top-2 right-2 flex size-8 items-center justify-center rounded-full bg-white text-rose-700 shadow-md transition hover:bg-rose-50"
-                                        >
-                                            <FaTrash aria-hidden="true" />
-                                        </button>
+                                                <button
+                                                    type="button"
+                                                    disabled={isSaving}
+                                                    onClick={() => handleRemoveImage(image)}
+                                                    aria-label={`Remover imagem ${index + 1}`}
+                                                    className="absolute top-2 right-2 flex size-8 items-center justify-center rounded-full bg-white text-rose-700 shadow-md transition hover:bg-rose-50 disabled:cursor-not-allowed disabled:opacity-50"
+                                                >
+                                                    <FaTrash aria-hidden="true" />
+                                                </button>
+                                            </div>
+                                        ))}
                                     </div>
-                                ))}
+                                )}
                             </div>
                         )}
                     </section>
@@ -838,18 +1002,23 @@ export default function PropertyForm({
                     <section className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
                         <button
                             type="submit"
-                            className="flex h-12 w-full items-center justify-center gap-2 rounded-lg bg-blue-700 px-5 font-semibold text-white transition hover:bg-blue-800"
+                            disabled={isSaving}
+                            className="flex h-12 w-full items-center justify-center gap-2 rounded-lg bg-blue-700 px-5 font-semibold text-white transition hover:bg-blue-800 disabled:cursor-wait disabled:opacity-60"
                         >
                             <FaFloppyDisk aria-hidden="true" />
 
-                            {mode === "create"
-                                ? "Cadastrar imóvel"
-                                : "Salvar alterações"}
+                            {isSaving
+                                ? "Salvando..."
+                                : mode === "create"
+                                    ? "Cadastrar imóvel"
+                                    : "Salvar alterações"}
                         </button>
 
                         <Link
                             href="/admin/imoveis"
-                            className="mt-3 flex h-11 w-full items-center justify-center gap-2 rounded-lg border border-slate-300 px-5 font-semibold text-slate-700 transition hover:bg-slate-50"
+                            aria-disabled={isSaving}
+                            className={`mt-3 flex h-11 w-full items-center justify-center gap-2 rounded-lg border border-slate-300 px-5 font-semibold text-slate-700 transition hover:bg-slate-50 ${isSaving ? "pointer-events-none opacity-50" : ""
+                                }`}
                         >
                             <FaArrowLeft aria-hidden="true" />
                             Cancelar
