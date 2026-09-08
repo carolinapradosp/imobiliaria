@@ -1,17 +1,15 @@
-import type { Metadata } from "next";
+// app\admin\(protected)\page.tsx
+
 import Link from "next/link";
 import { FaPlus } from "react-icons/fa6";
 
-import AdminPropertiesList from "@/components/admin/properties/AdminPropertiesList";
+import DashboardStats from "@/components/admin/DashboardStats";
+import PropertiesTable from "@/components/admin/PropertiesTable";
 import { getProperties } from "@/repositories/propertiesRepository";
-
-export const metadata: Metadata = {
-    title: "Imóveis",
-};
 
 export const dynamic = "force-dynamic";
 
-export default async function AdminPropertiesPage() {
+export default async function AdminDashboardPage() {
     const properties = await getProperties();
 
     return (
@@ -19,11 +17,11 @@ export default async function AdminPropertiesPage() {
             <div className="mb-8 flex flex-col justify-between gap-4 sm:flex-row sm:items-center">
                 <div>
                     <h1 className="text-2xl font-bold text-slate-900 sm:text-3xl">
-                        Imóveis
+                        Dashboard
                     </h1>
 
                     <p className="mt-2 text-slate-600">
-                        Gerencie todos os anúncios cadastrados.
+                        Acompanhe e gerencie os anúncios da imobiliária.
                     </p>
                 </div>
 
@@ -36,7 +34,11 @@ export default async function AdminPropertiesPage() {
                 </Link>
             </div>
 
-            <AdminPropertiesList initialProperties={properties} />
+            <DashboardStats properties={properties} />
+
+            <section className="mt-8">
+                <PropertiesTable properties={properties} />
+            </section>
         </div>
     );
 }

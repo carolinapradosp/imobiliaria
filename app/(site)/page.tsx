@@ -1,3 +1,5 @@
+// app\(site)\page.tsx
+
 import PropertySearch from "@/components/home/PropertySearch";
 import { getActiveProperties } from "@/repositories/propertiesRepository";
 

@@ -1,3 +1,5 @@
+// app\admin\(protected)\database\page.tsx
+
 import type { Metadata } from "next";
 import { FaCircleCheck } from "react-icons/fa6";
 
