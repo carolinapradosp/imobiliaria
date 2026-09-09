@@ -1,10 +1,12 @@
+// app\admin\(protected)\imoveis\[id]\editar\page.tsx
+
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { FaChevronRight } from "react-icons/fa6";
 
 import PropertyForm from "@/components/admin/properties/PropertyForm";
-import { properties } from "@/data/properties";
+import { getPropertyById } from "@/repositories/propertiesRepository";
 
 type EditPropertyPageProps = {
     params: Promise<{
@@ -12,19 +14,22 @@ type EditPropertyPageProps = {
     }>;
 };
 
+export const dynamic = "force-dynamic";
+
 export async function generateMetadata({
     params,
 }: EditPropertyPageProps): Promise<Metadata> {
     const { id } = await params;
+    const property = await getPropertyById(id);
 
-    const property = properties.find(
-        (currentProperty) => currentProperty.id === id,
-    );
+    if (!property) {
+        return {
+            title: "Imóvel não encontrado",
+        };
+    }
 
     return {
-        title: property
-            ? `Editar ${property.title}`
-            : "Imóvel não encontrado",
+        title: `Editar ${property.title}`,
     };
 }
 
@@ -32,10 +37,7 @@ export default async function EditPropertyPage({
     params,
 }: EditPropertyPageProps) {
     const { id } = await params;
-
-    const property = properties.find(
-        (currentProperty) => currentProperty.id === id,
-    );
+    const property = await getPropertyById(id);
 
     if (!property) {
         notFound();
@@ -45,7 +47,7 @@ export default async function EditPropertyPage({
         <div className="mx-auto max-w-400">
             <nav
                 aria-label="Navegação estrutural"
-                className="mb-5 flex flex-wrap items-center gap-2 text-sm text-slate-500"
+                className="mb-5 flex items-center gap-2 text-sm text-slate-500"
             >
                 <Link
                     href="/admin/imoveis"

@@ -76,14 +76,18 @@ export default function PropertiesTable({
                             >
                                 <td className="px-5 py-4">
                                     <div className="flex min-w-65 items-center gap-3">
-                                        <div className="relative size-14 shrink-0 overflow-hidden rounded-lg bg-slate-200">
-                                            <Image
-                                                src={property.images[0]}
-                                                alt=""
-                                                fill
-                                                sizes="56px"
-                                                className="object-cover"
-                                            />
+                                        <div className="relative flex size-14 shrink-0 items-center justify-center overflow-hidden rounded-lg bg-slate-200 text-xs text-slate-500">
+                                            {property.images[0] ? (
+                                                <Image
+                                                    src={property.images[0]}
+                                                    alt=""
+                                                    fill
+                                                    sizes="56px"
+                                                    className="object-cover"
+                                                />
+                                            ) : (
+                                                "Sem foto"
+                                            )}
                                         </div>
 
                                         <div>
@@ -115,8 +119,8 @@ export default function PropertiesTable({
                                 <td className="px-5 py-4">
                                     <span
                                         className={`inline-flex rounded-full px-2.5 py-1 text-xs font-semibold ${property.active
-                                                ? "bg-emerald-100 text-emerald-700"
-                                                : "bg-slate-200 text-slate-600"
+                                            ? "bg-emerald-100 text-emerald-700"
+                                            : "bg-slate-200 text-slate-600"
                                             }`}
                                     >
                                         {property.active ? "Ativo" : "Inativo"}

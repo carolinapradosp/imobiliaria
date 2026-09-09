@@ -1,12 +1,15 @@
+// components\admin\properties\PropertyStatusSwitch.tsx
 type PropertyStatusSwitchProps = {
     checked: boolean;
     propertyTitle: string;
+    disabled?: boolean;
     onChange: () => void;
 };
 
 export default function PropertyStatusSwitch({
     checked,
     propertyTitle,
+    disabled = false,
     onChange,
 }: PropertyStatusSwitchProps) {
     return (
@@ -16,8 +19,9 @@ export default function PropertyStatusSwitch({
             aria-checked={checked}
             aria-label={`${checked ? "Desativar" : "Ativar"
                 } o anúncio ${propertyTitle}`}
+            disabled={disabled}
             onClick={onChange}
-            className="flex items-center gap-2"
+            className="flex items-center gap-2 disabled:cursor-wait disabled:opacity-60"
         >
             <span
                 className={`relative inline-flex h-6 w-11 shrink-0 rounded-full transition-colors ${checked ? "bg-emerald-600" : "bg-slate-300"
@@ -33,7 +37,11 @@ export default function PropertyStatusSwitch({
                 className={`text-xs font-semibold ${checked ? "text-emerald-700" : "text-slate-500"
                     }`}
             >
-                {checked ? "Ativo" : "Inativo"}
+                {disabled
+                    ? "Salvando..."
+                    : checked
+                        ? "Ativo"
+                        : "Inativo"}
             </span>
         </button>
     );

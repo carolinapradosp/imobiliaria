@@ -1,3 +1,5 @@
+// components\layout\Footer.tsx
+import { contactConfig } from "@/config/contact";
 import Link from "next/link";
 import { FaBuilding } from "react-icons/fa6";
 
@@ -49,9 +51,9 @@ export default function Footer() {
                     <h2 className="font-semibold text-white">Atendimento</h2>
 
                     <address className="mt-4 space-y-2 text-sm not-italic text-slate-400">
-                        <p>contato@pradoimoveis.com.br</p>
-                        <p>(11) 99999-9999</p>
-                        <p>Segunda a sexta, das 9h às 18h</p>
+                        <p>{contactConfig.email}</p>
+                        <p>{contactConfig.phone}</p>
+                        <p>{contactConfig.businessHours}</p>
                     </address>
                 </div>
             </div>

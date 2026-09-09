@@ -1,3 +1,4 @@
+// components\admin\properties\DeletePropertyModal.tsx
 "use client";
 
 import { useEffect } from "react";
@@ -10,12 +11,15 @@ import type { Property } from "@/interfaces/Property";
 
 type DeletePropertyModalProps = {
     property: Property | null;
+    isDeleting?: boolean;
     onCancel: () => void;
-    onConfirm: () => void;
+    onConfirm: () => void | Promise<void>;
 };
+
 
 export default function DeletePropertyModal({
     property,
+    isDeleting = false,
     onCancel,
     onConfirm,
 }: DeletePropertyModalProps) {
@@ -25,7 +29,7 @@ export default function DeletePropertyModal({
         }
 
         function handleKeyDown(event: KeyboardEvent) {
-            if (event.key === "Escape") {
+            if (event.key === "Escape" && !isDeleting) {
                 onCancel();
             }
         }
@@ -35,7 +39,7 @@ export default function DeletePropertyModal({
         return () => {
             document.removeEventListener("keydown", handleKeyDown);
         };
-    }, [onCancel, property]);
+    }, [isDeleting, onCancel, property]);
 
     if (!property) {
         return null;
@@ -45,7 +49,10 @@ export default function DeletePropertyModal({
         <div
             role="presentation"
             onMouseDown={(event) => {
-                if (event.target === event.currentTarget) {
+                if (
+                    event.target === event.currentTarget &&
+                    !isDeleting
+                ) {
                     onCancel();
                 }
             }}
@@ -66,8 +73,9 @@ export default function DeletePropertyModal({
                     <button
                         type="button"
                         onClick={onCancel}
+                        disabled={isDeleting}
                         aria-label="Fechar confirmação"
-                        className="flex size-9 items-center justify-center rounded-lg text-slate-400 transition hover:bg-slate-100 hover:text-slate-700"
+                        className="h-11 rounded-lg border border-slate-300 px-5 font-semibold text-slate-700 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50"
                     >
                         <FaXmark aria-hidden="true" />
                     </button>
@@ -107,10 +115,11 @@ export default function DeletePropertyModal({
 
                     <button
                         type="button"
+                        disabled={isDeleting}
                         onClick={onConfirm}
-                        className="h-11 rounded-lg bg-rose-700 px-5 font-semibold text-white transition hover:bg-rose-800"
+                        className="h-11 rounded-lg bg-rose-700 px-5 font-semibold text-white transition hover:bg-rose-800 disabled:cursor-wait disabled:opacity-60"
                     >
-                        Excluir imóvel
+                        {isDeleting ? "Excluindo..." : "Excluir imóvel"}
                     </button>
                 </div>
             </div>

@@ -1,6 +1,12 @@
-import PropertySearch from "@/components/home/PropertySearch";
-import { properties } from "@/data/properties";
+// app\(site)\page.tsx
 
-export default function Home() {
+import PropertySearch from "@/components/home/PropertySearch";
+import { getActiveProperties } from "@/repositories/propertiesRepository";
+
+export const dynamic = "force-dynamic";
+
+export default async function Home() {
+  const properties = await getActiveProperties();
+
   return <PropertySearch properties={properties} />;
 }

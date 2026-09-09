@@ -1,3 +1,5 @@
+// app\admin\(protected)\imoveis\novo\page.tsx
+
 import type { Metadata } from "next";
 import Link from "next/link";
 import { FaChevronRight } from "react-icons/fa6";

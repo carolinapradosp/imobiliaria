@@ -1,3 +1,4 @@
+// components\admin\properties\AdminPropertiesList.tsx
 "use client";
 
 import Image from "next/image";
@@ -18,6 +19,21 @@ import AdminPropertyFilters, {
 } from "./AdminPropertyFilters";
 import DeletePropertyModal from "./DeletePropertyModal";
 import PropertyStatusSwitch from "./PropertyStatusSwitch";
+
+import {
+    deletePropertyAction,
+    togglePropertyStatusAction,
+} from "@/app/admin/(protected)/imoveis/actions";
+
+type FeedbackState = {
+    type: "success" | "error";
+    message: string;
+} | null;
+
+type PendingActionState = {
+    propertyId: string;
+    type: "status" | "delete";
+} | null;
 
 type AdminPropertiesListProps = {
     initialProperties: Property[];
@@ -57,7 +73,11 @@ export default function AdminPropertiesList({
     const [propertyToDelete, setPropertyToDelete] =
         useState<Property | null>(null);
 
-    const [feedbackMessage, setFeedbackMessage] = useState("");
+    const [feedback, setFeedback] =
+        useState<FeedbackState>(null);
+
+    const [pendingAction, setPendingAction] =
+        useState<PendingActionState>(null);
 
     const filteredProperties = useMemo(() => {
         const normalizedSearch = normalizeText(filters.search);
@@ -109,30 +129,53 @@ export default function AdminPropertiesList({
     function handleClearFilters() {
         setFilters(initialFilters);
     }
+    async function handleToggleStatus(propertyId: string) {
+        if (pendingAction) {
+            return;
+        }
 
-    function handleToggleStatus(propertyId: string) {
-        let updatedProperty: Property | undefined;
+        setPendingAction({
+            propertyId,
+            type: "status",
+        });
 
-        setProperties((currentProperties) =>
-            currentProperties.map((property) => {
-                if (property.id !== propertyId) {
-                    return property;
-                }
+        setFeedback(null);
 
-                updatedProperty = {
-                    ...property,
-                    active: !property.active,
-                };
+        try {
+            const result =
+                await togglePropertyStatusAction(propertyId);
 
-                return updatedProperty;
-            }),
-        );
+            if (!result.success) {
+                setFeedback({
+                    type: "error",
+                    message: result.message,
+                });
 
-        if (updatedProperty) {
-            setFeedbackMessage(
-                `O anúncio foi ${updatedProperty.active ? "ativado" : "desativado"
-                } com sucesso.`,
+                return;
+            }
+
+            setProperties((currentProperties) =>
+                currentProperties.map((property) =>
+                    property.id === propertyId
+                        ? {
+                            ...property,
+                            active: result.active ?? property.active,
+                        }
+                        : property,
+                ),
             );
+
+            setFeedback({
+                type: "success",
+                message: result.message,
+            });
+        } catch {
+            setFeedback({
+                type: "error",
+                message: "Não foi possível alterar o status.",
+            });
+        } finally {
+            setPendingAction(null);
         }
     }
 
@@ -140,34 +183,71 @@ export default function AdminPropertiesList({
         setPropertyToDelete(null);
     }, []);
 
-    function handleConfirmDelete() {
-        if (!propertyToDelete) {
+    async function handleConfirmDelete() {
+        if (!propertyToDelete || pendingAction) {
             return;
         }
 
-        setProperties((currentProperties) =>
-            currentProperties.filter(
-                (property) => property.id !== propertyToDelete.id,
-            ),
-        );
+        const propertyId = propertyToDelete.id;
 
-        setFeedbackMessage("O imóvel foi excluído com sucesso.");
-        setPropertyToDelete(null);
+        setPendingAction({
+            propertyId,
+            type: "delete",
+        });
+
+        setFeedback(null);
+
+        try {
+            const result =
+                await deletePropertyAction(propertyId);
+
+            if (!result.success) {
+                setFeedback({
+                    type: "error",
+                    message: result.message,
+                });
+
+                return;
+            }
+
+            setProperties((currentProperties) =>
+                currentProperties.filter(
+                    (property) => property.id !== propertyId,
+                ),
+            );
+
+            setPropertyToDelete(null);
+
+            setFeedback({
+                type: "success",
+                message: result.message,
+            });
+        } catch {
+            setFeedback({
+                type: "error",
+                message: "Não foi possível excluir o imóvel.",
+            });
+        } finally {
+            setPendingAction(null);
+        }
     }
 
     return (
         <>
-            {feedbackMessage && (
+            {feedback && (
                 <div
-                    role="status"
-                    className="mb-5 flex items-center justify-between gap-4 rounded-lg border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm font-medium text-emerald-800"
+                    role={feedback.type === "error" ? "alert" : "status"}
+                    className={`mb-5 flex items-center justify-between gap-4 rounded-lg border px-4 py-3 text-sm font-medium ${feedback.type === "success"
+                        ? "border-emerald-200 bg-emerald-50 text-emerald-800"
+                        : "border-rose-200 bg-rose-50 text-rose-800"
+                        }`}
                 >
-                    <span>{feedbackMessage}</span>
+                    <span>{feedback.message}</span>
 
                     <button
                         type="button"
-                        onClick={() => setFeedbackMessage("")}
-                        className="shrink-0 font-bold hover:text-emerald-950"
+                        onClick={() => setFeedback(null)}
+                        className="shrink-0 font-bold"
                         aria-label="Fechar mensagem"
                     >
                         ×
@@ -266,14 +346,18 @@ export default function AdminPropertiesList({
                                     >
                                         <td className="px-5 py-4">
                                             <div className="flex min-w-70 items-center gap-3">
-                                                <div className="relative size-14 shrink-0 overflow-hidden rounded-lg bg-slate-200">
-                                                    <Image
-                                                        src={property.images[0]}
-                                                        alt=""
-                                                        fill
-                                                        sizes="56px"
-                                                        className="object-cover"
-                                                    />
+                                                <div className="relative flex size-14 shrink-0 items-center justify-center overflow-hidden rounded-lg bg-slate-200 text-xs text-slate-500">
+                                                    {property.images[0] ? (
+                                                        <Image
+                                                            src={property.images[0]}
+                                                            alt=""
+                                                            fill
+                                                            sizes="56px"
+                                                            className="object-cover"
+                                                        />
+                                                    ) : (
+                                                        "Sem foto"
+                                                    )}
                                                 </div>
 
                                                 <div>
@@ -312,6 +396,10 @@ export default function AdminPropertiesList({
                                             <PropertyStatusSwitch
                                                 checked={property.active}
                                                 propertyTitle={property.title}
+                                                disabled={
+                                                    pendingAction?.propertyId === property.id &&
+                                                    pendingAction.type === "status"
+                                                }
                                                 onChange={() =>
                                                     handleToggleStatus(property.id)
                                                 }
@@ -344,7 +432,8 @@ export default function AdminPropertiesList({
                                                     onClick={() => setPropertyToDelete(property)}
                                                     aria-label={`Excluir ${property.title}`}
                                                     title="Excluir"
-                                                    className="flex size-9 items-center justify-center rounded-lg text-slate-500 transition hover:bg-rose-50 hover:text-rose-700"
+                                                    disabled={pendingAction !== null}
+                                                    className="flex size-9 items-center justify-center rounded-lg text-slate-500 transition hover:bg-rose-50 hover:text-rose-700 disabled:cursor-not-allowed disabled:opacity-40"
                                                 >
                                                     <FaTrash aria-hidden="true" />
                                                 </button>
@@ -360,6 +449,11 @@ export default function AdminPropertiesList({
 
             <DeletePropertyModal
                 property={propertyToDelete}
+                isDeleting={
+                    propertyToDelete !== null &&
+                    pendingAction?.propertyId === propertyToDelete.id &&
+                    pendingAction.type === "delete"
+                }
                 onCancel={handleCloseDeleteModal}
                 onConfirm={handleConfirmDelete}
             />
