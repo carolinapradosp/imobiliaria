@@ -74,7 +74,7 @@ export default async function PropertyPage({
                         aria-hidden="true"
                     />
 
-                    <Link href="/#imoveis" className="hover:text-blue-700">
+                    <Link href="/imoveis" className="hover:text-blue-700">
                         Imóveis
                     </Link>
 
