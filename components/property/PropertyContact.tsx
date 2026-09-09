@@ -1,5 +1,7 @@
+// components\property\PropertyContact.tsx
 "use client";
 
+import { contactConfig } from "@/config/contact";
 import { FormEvent, useState } from "react";
 import { FaWhatsapp } from "react-icons/fa6";
 
@@ -168,7 +170,7 @@ export default function PropertyContact({
             </div>
 
             <a
-                href={`https://wa.me/5511999999999?text=${whatsappMessage}`}
+                href={`https://wa.me/${contactConfig.whatsapp}?text=${whatsappMessage}`}
                 target="_blank"
                 rel="noopener noreferrer"
                 className="flex h-12 w-full items-center justify-center gap-2 rounded-lg border border-emerald-600 font-semibold text-emerald-700 transition-colors hover:bg-emerald-50"
